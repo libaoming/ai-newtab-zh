@@ -1,4 +1,21 @@
-# AI Homepage
+# AI Homepage · 中文版
+
+**English** | [简体中文](./README.zh-CN.md)
+
+> A fork of [ThariqS/ai-newtab](https://github.com/ThariqS/ai-newtab) with two changes:
+>
+> 1. **Chinese by default.** The extension UI is in Simplified Chinese, and the agent
+>    writes the homepage in Simplified Chinese (it translates headlines and summaries;
+>    product names, code and tickers stay as they are). Your own instructions can
+>    override the language.
+> 2. **Builds survive a dropped connection.** Behind a proxy or VPN the session's
+>    event stream is often closed mid-build, which made every build fail with
+>    *"Agent produced no homepage"* or *"network error"*. The build now reattaches
+>    to its session and carries on. See
+>    [ARCHITECTURE.md](./ARCHITECTURE.md#surviving-a-dropped-stream).
+>
+> Everything else is upstream's work. Button labels below are shown as they appear
+> in this fork.
 
 **A new tab that reads the internet for you.**
 
@@ -30,8 +47,8 @@ You need Chrome (or another Chromium browser), [Node.js](https://nodejs.org) 20+
 and an [Anthropic API key](https://console.anthropic.com).
 
 ```bash
-git clone https://github.com/ThariqS/ai-newtab.git
-cd ai-newtab
+git clone https://github.com/libaoming/ai-newtab-zh.git
+cd ai-newtab-zh
 npx pnpm@10.11.1 install
 npx pnpm@10.11.1 build
 ```
@@ -49,7 +66,7 @@ If Chrome asks whether to keep the changed new-tab page, choose **Keep it**.
 ## Your first homepage
 
 1. Open a new tab and paste your Anthropic API key.
-2. Click **Build today's homepage**.
+2. Click **生成今天的主页** (Build today's homepage).
 3. Watch it work. The progress view walks through each step: preparing the
    agent, reading your history, opening pages in your browser, analyzing them,
    and writing your homepage.
@@ -60,7 +77,7 @@ you open.
 
 ## Make it yours
 
-Click **⚙️ Settings** on the new tab.
+Click **⚙️ 设置** (Settings) on the new tab.
 
 **Instructions.** Anything you write here goes into every build and takes priority
 over the agent's own defaults. This box sets both the content and the look:
@@ -73,11 +90,11 @@ over the agent's own defaults. This box sets both the content and the look:
 | *"Green-on-black terminal, monospace, like a 1980s BBS."* | Exactly that |
 | *"Skip sports and politics. Always show the weather and my next three calendar events."* | Your rules, every day |
 
-Click **Save & rebuild** to apply them right away.
+Click **保存并重新生成** (Save & rebuild) to apply them right away.
 
 **Sites the agent never reads.** Enter one host per line; subdomains are included,
 and `*.example.com` is supported. The editable defaults include common webmail,
-sign-in and document hosts. **Save & rebuild** saves the list and applies it to
+sign-in and document hosts. **保存并重新生成** saves the list and applies it to
 history summaries and URLs requested through `getPageHtml`. A page that redirects
 onto a blocked host is dropped before its content is uploaded. Local-network
 addresses (localhost, private IPs, `.local` and `.internal` hosts) are always blocked.
@@ -95,7 +112,7 @@ interval you pick (6, 12, 24 or 48 hours), the extension rebuilds it quietly in 
 background. It only starts after you've built once by hand, and it won't retry a
 failed build until the next interval, so it never loops.
 
-**↻ Rebuild** in the top-right corner rebuilds right away.
+**↻ 重新生成** (Rebuild) in the top-right corner rebuilds right away.
 
 ## Good to know
 
@@ -108,7 +125,10 @@ failed build until the next interval, so it never loops.
 - **Links are real.** Every link on the page comes from a page the agent actually
   read. It's told never to invent a URL.
 - **Interrupted builds.** If Chrome closes mid-build, the new tab offers
-  **Resume interrupted build** next time.
+  **继续被中断的构建** (Resume interrupted build) next time.
+- **Dropped connections.** If the connection to the API is cut mid-build, the
+  activity log shows `stream dropped; reconnecting (n/8)` and the build continues.
+  It gives up only after 8 drops in a row with no progress.
 - **Updating.** After pulling new code, run `npx pnpm@10.11.1 build` again, then
   click the reload icon on the extension in `chrome://extensions`.
 
@@ -157,4 +177,4 @@ the stored API key.
 
 ## License
 
-MIT
+MIT. Original work © the upstream authors; see [LICENSE](./LICENSE).

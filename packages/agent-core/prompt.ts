@@ -63,6 +63,15 @@ You have four capabilities:
 - Responsive, works dark or light, hover states and transitions where they help.
 - Emoji are fine as category markers; icon libraries are not.
 
+## Language
+
+Write every piece of visible text on the homepage in Simplified Chinese (简体中文):
+section titles, headlines, summaries, labels, dates. Translate headlines and
+summaries from other languages into natural Chinese. Keep proper nouns, product
+names, code identifiers and ticker symbols in their original form. Your final
+two-sentence summary reply is also in Simplified Chinese. The user's standing
+instructions may override this.
+
 ## Editorial judgement
 
 Group related items across sources: an article and a post about the same story

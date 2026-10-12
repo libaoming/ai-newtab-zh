@@ -7,11 +7,10 @@ export function ApiKeySetup({ onSave }: { onSave: (key: string) => void }) {
 
   return (
     <div style={{ maxWidth: 520, margin: "12vh auto", padding: 24, fontFamily: "system-ui" }}>
-      <h1 style={{ fontSize: 24 }}>Connect your Anthropic API key</h1>
+      <h1 style={{ fontSize: 24 }}>填入你的 Anthropic API key</h1>
       <p style={{ color: "#555", lineHeight: 1.6 }}>
-        The agent runs inside this extension and talks to the Anthropic API directly. Your key
-        is stored in <code>chrome.storage.local</code> on this machine and is never sent
-        anywhere else.
+        Agent 在这个扩展里运行，直接调用 Anthropic API。你的 key 存在本机的{" "}
+        <code>chrome.storage.local</code> 里，不会发往其他任何地方。
       </p>
       <input
         type="password"
@@ -32,7 +31,7 @@ export function ApiKeySetup({ onSave }: { onSave: (key: string) => void }) {
         disabled={!valid}
         onClick={() => onSave(value.trim())}
       >
-        Save key
+        保存
       </button>
     </div>
   );

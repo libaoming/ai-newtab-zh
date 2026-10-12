@@ -38,7 +38,7 @@ export function BuildProgress({
       <div className="build-left">
         <div className="build-panel">
           <div className="build-top">
-            <span className="build-title">Building your homepage</span>
+            <span className="build-title">正在生成你的主页</span>
             <span className="build-elapsed">
               {mm}:{ss}
             </span>
@@ -61,11 +61,11 @@ export function BuildProgress({
 
           <div style={{ display: "flex", gap: 10 }}>
             <button className="build-cancel" onClick={onCancel}>
-              Cancel
+              取消
             </button>
             {onBack && (
               <button className="build-cancel" style={{ background: "transparent" }} onClick={onBack}>
-                ← Back to homepage
+                ← 返回主页
               </button>
             )}
           </div>
@@ -76,12 +76,12 @@ export function BuildProgress({
         <div className="build-panel">
           <div className="build-eyebrow">Agent</div>
           <div className="build-narration" ref={narrRef}>
-            {narration || "Warming up — reading what you’ve been browsing…"}
+            {narration || "准备中，正在读取你最近的浏览记录…"}
           </div>
 
           {logs.length > 0 && (
             <>
-              <div className="build-eyebrow build-log-label">Activity log</div>
+              <div className="build-eyebrow build-log-label">活动日志</div>
               <pre className="build-log" ref={logRef}>
                 {logs.slice(-LOG_RETENTION).join("\n")}
               </pre>

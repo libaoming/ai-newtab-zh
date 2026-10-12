@@ -43,12 +43,12 @@ export function SettingsModal({
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div style={{ backgroundColor: "white", borderRadius: 8, padding: 24, width: "90%", maxWidth: 600, maxHeight: "90vh", overflowY: "auto" }}>
-        <h2 style={{ marginTop: 0, color: "#333" }}>Customize your homepage</h2>
-        <p style={{ color: "#666" }}>Standing instructions applied to every build.</p>
+        <h2 style={{ marginTop: 0, color: "#333" }}>自定义你的主页</h2>
+        <p style={{ color: "#666" }}>常驻指令，每次构建都会生效。</p>
         <textarea
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="e.g. 'Focus on tech news and Rust releases', 'Always surface unread GitHub PRs first'"
+          placeholder="例如：「重点看 AI 产品发布和美股新闻」「未读的 GitHub PR 永远放最前面」"
           style={{
             width: "100%",
             minHeight: 200,
@@ -60,7 +60,7 @@ export function SettingsModal({
           }}
         />
         <label style={{ display: "block", marginTop: 16, color: "#333", fontSize: 14 }}>
-          Sites the agent never reads
+          Agent 永不读取的站点
           <textarea
             value={blockedDraft}
             onChange={(e) => setBlockedDraft(e.target.value)}
@@ -69,12 +69,12 @@ export function SettingsModal({
           />
         </label>
         <p id="blocked-sites-help" style={{ color: "#888", fontSize: 12, margin: "6px 0 0" }}>
-          One per line. Subdomains are included. Use *.example.com for wildcards.
+          每行一个域名，自动包含子域名。通配符写法：*.example.com。
         </p>
         <label
           style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16, color: "#333", fontSize: 14 }}
         >
-          Model
+          模型
           <select
             value={model}
             onChange={(e) => onChangeModel(e.target.value as HomepageModel)}
@@ -103,7 +103,7 @@ export function SettingsModal({
             checked={autoRebuild}
             onChange={(e) => onToggleAutoRebuild(e.target.checked)}
           />
-          Rebuild automatically
+          自动重新生成
         </label>
         <label
           style={{
@@ -116,7 +116,7 @@ export function SettingsModal({
             fontSize: 14,
           }}
         >
-          Every
+          间隔
           <select
             value={intervalHours}
             disabled={!autoRebuild}
@@ -125,24 +125,23 @@ export function SettingsModal({
           >
             {REBUILD_INTERVAL_CHOICES.map((h) => (
               <option key={h} value={h}>
-                {h === 24 ? "24 hours (daily)" : `${h} hours`}
+                {h === 24 ? "24 小时（每天）" : `${h} 小时`}
               </option>
             ))}
           </select>
         </label>
         <p style={{ color: "#888", fontSize: 12, margin: "6px 0 0" }}>
-          When on, the extension rebuilds in the background once your homepage is this old, so
-          your next tab shows a fresh one (uses your API key).
+          开启后，主页超过这个时长，扩展会在后台重新生成，下次打开新标签页就是新的（消耗你的 API key 额度）。
         </p>
         <div style={{ display: "flex", gap: 12, marginTop: 20, justifyContent: "flex-end" }}>
           <button
             onClick={onClose}
             style={{ ...btn, backgroundColor: "white", color: "#333", border: "1px solid #ddd" }}
           >
-            Cancel
+            取消
           </button>
           <button onClick={() => onSave(draft, normalizeBlockList(blockedDraft.split("\n")))} style={btn}>
-            Save &amp; rebuild
+            保存并重新生成
           </button>
         </div>
       </div>

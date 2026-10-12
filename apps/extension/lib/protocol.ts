@@ -56,11 +56,11 @@ export type BuildMsg =
  * stepper.
  */
 export const BUILD_STEPS: { label: string; phases: RunPhase[] }[] = [
-  { label: "Preparing agent", phases: ["setup", "session-create"] },
-  { label: "Reading your history", phases: ["history"] },
-  { label: "Opening pages in your browser", phases: ["scraping"] },
-  { label: "Analyzing pages", phases: ["analyzing"] },
-  { label: "Writing your homepage", phases: ["writing", "cleanup", "done"] },
+  { label: "准备 Agent", phases: ["setup", "session-create"] },
+  { label: "读取浏览历史", phases: ["history"] },
+  { label: "在浏览器中打开页面", phases: ["scraping"] },
+  { label: "分析页面", phases: ["analyzing"] },
+  { label: "撰写主页", phases: ["writing", "cleanup", "done"] },
 ];
 
 /** Which step a phase belongs to, or `undefined` if it shouldn't move the stepper. */

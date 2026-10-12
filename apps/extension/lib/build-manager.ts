@@ -146,7 +146,7 @@ export class BuildManager {
       // Manual builds are gated behind the key-setup screen and auto-builds
       // require a key, so this only happens if the key was removed.
       console.warn("[BuildManager] startBuild aborted — no API key in storage");
-      const message = "No Anthropic API key found. Add your key and try again.";
+      const message = "没有找到 Anthropic API key，请填入后重试。";
       this.state = { ...INITIAL_BUILD_STATE, phase: "error", error: message };
       this.broadcast({ kind: "error", message });
       return;
@@ -289,7 +289,7 @@ export class BuildManager {
       browser.notifications.create({
         type: "basic",
         iconUrl: browser.runtime.getURL("/icon/128.png"),
-        title: "Homepage build failed",
+        title: "主页构建失败",
         message: message.slice(0, 200),
       });
     } catch {

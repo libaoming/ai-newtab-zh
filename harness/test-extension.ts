@@ -152,7 +152,7 @@ try {
   const bodyText = await page.evaluate<string>("document.body.innerText");
   check(
     "renders the API-key setup screen",
-    /Connect your Anthropic API key/i.test(bodyText),
+    /填入你的 Anthropic API key/i.test(bodyText),
     bodyText.split("\n").filter(Boolean)[0]?.slice(0, 50),
   );
 

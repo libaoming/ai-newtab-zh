@@ -91,7 +91,7 @@ export default function App() {
     await saveSetting("rebuildIntervalHours", next);
   }, []);
 
-  if (loading) return <div style={{ padding: 20, textAlign: "center" }}>Loading…</div>;
+  if (loading) return <div style={{ padding: 20, textAlign: "center" }}>加载中…</div>;
   if (!apiKey) return <ApiKeySetup onSave={saveKey} />;
 
   // With no homepage to fall back to, a running build takes over the tab.
@@ -108,21 +108,20 @@ export default function App() {
   if (!renderedCode) {
     return (
       <div style={{ maxWidth: 560, margin: "14vh auto", padding: 24, fontFamily: "system-ui" }}>
-        <h1 style={{ fontSize: 26 }}>Build your homepage</h1>
+        <h1 style={{ fontSize: 26 }}>生成你的主页</h1>
         <p style={{ color: "#555", lineHeight: 1.6 }}>
-          The agent reads your browsing history, opens the pages you actually follow, and writes a
-          homepage from what it finds today.
+          Agent 会读取你的浏览历史，打开你常看的页面，再根据今天读到的内容写出一个主页。
         </p>
         {state.error && (
           <div style={{ ...errorBox, margin: "16px 0", padding: 12, borderRadius: 4 }}>{state.error}</div>
         )}
         <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
           <button style={btn} onClick={() => build()}>
-            Build today&apos;s homepage
+            生成今天的主页
           </button>
           {resumable && (
             <button style={{ ...btn, backgroundColor: "#555" }} onClick={() => build({ resume: true })}>
-              Resume interrupted build
+              继续被中断的构建
             </button>
           )}
         </div>
@@ -141,7 +140,7 @@ export default function App() {
           <button
             style={{ ...btn, backgroundColor: "#0a7", display: "flex", alignItems: "center", gap: 8 }}
             onClick={() => setViewProgress(true)}
-            title="View build progress"
+            title="查看构建进度"
           >
             <span
               style={{
@@ -152,15 +151,15 @@ export default function App() {
                 animation: "hb-pulse 1.2s ease-in-out infinite",
               }}
             />
-            Building… {Math.min(state.stepIndex + 1, BUILD_STEPS.length)}/{BUILD_STEPS.length}
+            构建中… {Math.min(state.stepIndex + 1, BUILD_STEPS.length)}/{BUILD_STEPS.length}
           </button>
         ) : (
-          <button style={btn} onClick={() => build()} title="Rebuild now">
-            ↻ Rebuild
+          <button style={btn} onClick={() => build()} title="立即重新生成">
+            ↻ 重新生成
           </button>
         )}
-        <button style={btn} onClick={() => setShowSettings(true)} title="Customize homepage">
-          ⚙️ Settings
+        <button style={btn} onClick={() => setShowSettings(true)} title="自定义主页">
+          ⚙️ 设置
         </button>
       </div>
 
@@ -181,10 +180,10 @@ export default function App() {
           }}
         >
           <span style={{ flex: 1 }}>
-            <b>Build failed.</b> {state.error}
+            <b>构建失败。</b> {state.error}
           </span>
           <button style={{ ...btn, padding: "4px 10px", backgroundColor: "#a02620" }} onClick={() => build()}>
-            Retry
+            重试
           </button>
           <button
             onClick={() => setDismissedError(state.error)}
@@ -196,7 +195,7 @@ export default function App() {
               fontSize: 16,
               lineHeight: 1,
             }}
-            title="Dismiss"
+            title="关闭"
           >
             ✕
           </button>
