@@ -31,9 +31,12 @@ async function runTools(urls: string[], blockedSites?: string[] | (() => Promise
     { id: "history", type: "agent.custom_tool_use", name: "getHistory", input: { maxResults: 1 } },
     { id: "pages", type: "agent.custom_tool_use", name: "getPageHtml", input: { urls } },
   ];
-  async function* stream() { if (!resume) yield* events; }
+  // The turn ends on the stream once the tool calls are answered; a stream that
+  // closes without this is a dropped connection, not a finished build.
+  const end = { id: "end", type: "session.status_idle", stop_reason: { type: "end_turn" } };
+  async function* stream() { if (!resume) yield* events; yield end; }
   const client = { beta: {
-    agents: { retrieve: async () => ({}) },
+    agents: { retrieve: async () => ({}), update: async () => ({}) },
     environments: { retrieve: async () => ({}) },
     sessions: {
       create: async () => ({ id: "session" }),

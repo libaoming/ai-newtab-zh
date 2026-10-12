@@ -27,6 +27,9 @@ interface Emit {
 
 const MANAGED_AGENTS_BETA = "managed-agents-2026-04-01";
 
+/** How many times in a row a build reattaches to its session without seeing a new event. */
+const MAX_STREAM_RECONNECTS = 8;
+
 /** Files mount under this root no matter what path you ask for. Ask for it directly. */
 const UPLOAD_ROOT = "/mnt/session/uploads";
 
@@ -157,85 +160,141 @@ export async function runHomepageBuild(opts: RunOptions): Promise<HomepageBuildR
   };
 
   try {
-    // ---- Open the stream BEFORE anything else. It only delivers events emitted
-    // ---- after it opens; send first and the early transitions are gone.
-    let stream = await client.beta.sessions.events.stream(sessionId, undefined, { signal });
+    const seen = new Set<string>();
+    /** Tool calls answered by this run. The event list can lag a result we just sent. */
+    const answeredHere = new Set<string>();
+    const isTerminal = (event: SessionEvent) =>
+      event.type === "session.status_terminated" ||
+      (event.type === "session.status_idle" && event.stop_reason.type !== "requires_action");
+    const logTerminal = (event: SessionEvent) =>
+      emit.log(event.type === "session.status_idle" ? `idle: ${event.stop_reason.type}` : "session terminated");
 
-    // ---- Then replay history. Covers the gap before the stream attached, and
-    // ---- is what makes a reattach lossless.
-    const history: SessionEvent[] = [];
-    for await (const event of client.beta.sessions.events.list(sessionId)) {
-      history.push(event);
-    }
+    // The stream can drop (a proxy closing an idle connection, a network blip) while
+    // the session carries on server-side. Reattach instead of giving up: the event
+    // log is the source of truth, so every pass replays it and resumes from there.
+    let finished = false;
+    /** Consecutive passes that saw no new event. A pass that made progress resets it. */
+    let drops = 0;
+    let lastError: unknown;
+    /** The event list can lag a kickoff we just sent, exactly as it can a tool result. */
+    let kickedOffHere = false;
+    while (!finished) {
+      if (signal?.aborted) throw new Error("aborted");
+      if (drops > MAX_STREAM_RECONNECTS) {
+        throw new Error(
+          `Lost the connection to the agent session ${MAX_STREAM_RECONNECTS} times in a row; giving up.` +
+            (lastError ? ` Last error: ${String(lastError)}` : ""),
+        );
+      }
+      if (drops > 0) {
+        emit.log(`stream dropped; reconnecting (${drops}/${MAX_STREAM_RECONNECTS})`);
+        await abortableSleep(Math.min(1000 * drops, 5000), signal);
+      }
 
-    const seen = new Set(history.map((e) => e.id));
-    const answered = new Set(
-      history
-        .filter((e): e is Extract<SessionEvent, { type: "user.custom_tool_result" }> =>
-          e.type === "user.custom_tool_result",
-        )
-        .map((e) => e.custom_tool_use_id),
-    );
-    const kickedOff = history.some((e) => e.type === "user.message");
-    const alreadyDone = history.some(
-      (e) => e.type === "session.status_idle" && e.stop_reason.type === "end_turn",
-    );
+      const seenBefore = seen.size;
+      let stream: { controller?: AbortController } | undefined;
+      try {
+        // ---- Open the stream BEFORE anything else. It only delivers events emitted
+        // ---- after it opens; send first and the early transitions are gone.
+        const live = await client.beta.sessions.events.stream(sessionId, undefined, { signal });
+        stream = live;
 
-    for (const event of history) observe(event);
-
-    if (!alreadyDone) {
-      // Re-answer any tool call that was left hanging when the stream dropped.
-      for (const event of history) {
-        if (event.type === "agent.custom_tool_use" && !answered.has(event.id)) {
-          emit.log(`re-answering orphaned tool call ${event.id}`);
-          await dispatch(event);
+        // ---- Then replay history. Covers the gap before the stream attached, and
+        // ---- is what makes a reattach lossless.
+        const history: SessionEvent[] = [];
+        for await (const event of client.beta.sessions.events.list(sessionId)) {
+          history.push(event);
         }
-      }
 
-      if (!kickedOff) {
-        await client.beta.sessions.events.send(sessionId, {
-          events: [
-            {
-              type: "user.message",
-              content: [
-                {
-                  type: "text",
-                  text: buildKickoffMessage({
-                    now: opts.now ?? new Date(),
-                    userSystemPrompt: opts.userSystemPrompt,
-                  }),
-                },
-              ],
-            },
-          ],
-        });
-      }
+        const answered = new Set(
+          history
+            .filter((e): e is Extract<SessionEvent, { type: "user.custom_tool_result" }> =>
+              e.type === "user.custom_tool_result",
+            )
+            .map((e) => e.custom_tool_use_id),
+        );
 
-      for await (const event of stream) {
-        if (signal?.aborted) throw new Error("aborted");
-
-        // Live-preview events carry no `id` and are never terminal. They only
-        // arrive if `event_deltas` was requested, but the stream union includes
-        // them either way — reading `.id` off one would throw.
-        if (event.type === "event_start" || event.type === "event_delta") continue;
-
-        if (!seen.has(event.id)) {
+        for (const event of history) {
+          if (seen.has(event.id)) continue;
           seen.add(event.id);
           observe(event);
-          if (event.type === "agent.custom_tool_use") {
+        }
+
+        const terminal = history.find(isTerminal);
+        if (terminal) {
+          logTerminal(terminal);
+          finished = true;
+          break;
+        }
+
+        // Re-answer any tool call that was left hanging when the stream dropped.
+        for (const event of history) {
+          if (event.type === "agent.custom_tool_use" && !answered.has(event.id) && !answeredHere.has(event.id)) {
+            emit.log(`re-answering orphaned tool call ${event.id}`);
             await dispatch(event);
+            answeredHere.add(event.id);
           }
         }
 
-        // Terminal checks run for *every* event, including ones we've already
-        // seen. `continue`-ing on a duplicate above would skip the terminal
-        // event that arrived in the history fetch, and the loop would never end.
-        if (event.type === "session.status_terminated") break;
-        if (event.type === "session.status_idle" && event.stop_reason.type !== "requires_action") {
-          emit.log(`idle: ${event.stop_reason.type}`);
-          break;
+        if (!kickedOffHere && !history.some((e) => e.type === "user.message")) {
+          kickedOffHere = true;
+          await client.beta.sessions.events.send(sessionId, {
+            events: [
+              {
+                type: "user.message",
+                content: [
+                  {
+                    type: "text",
+                    text: buildKickoffMessage({
+                      now: opts.now ?? new Date(),
+                      userSystemPrompt: opts.userSystemPrompt,
+                    }),
+                  },
+                ],
+              },
+            ],
+          });
         }
+
+        for await (const event of live) {
+          if (signal?.aborted) throw new Error("aborted");
+
+          // Live-preview events carry no `id` and are never terminal. They only
+          // arrive if `event_deltas` was requested, but the stream union includes
+          // them either way — reading `.id` off one would throw.
+          if (event.type === "event_start" || event.type === "event_delta") continue;
+
+          if (!seen.has(event.id)) {
+            seen.add(event.id);
+            observe(event);
+            if (event.type === "agent.custom_tool_use") {
+              await dispatch(event);
+              answeredHere.add(event.id);
+            }
+          }
+
+          // Terminal checks run for *every* event, including ones we've already
+          // seen. `continue`-ing on a duplicate above would skip the terminal
+          // event that arrived in the history fetch, and the loop would never end.
+          if (isTerminal(event)) {
+            logTerminal(event);
+            finished = true;
+            break;
+          }
+        }
+        // Falling out of the stream without a terminal event means it was cut.
+      } catch (err) {
+        if (signal?.aborted) throw err;
+        // A bad key, a deleted session, a rejected request: retrying cannot fix
+        // these, and the API's own message is the useful one.
+        if (!isRetryable(err)) throw err;
+        lastError = err;
+        emit.log(`stream error: ${String(err)}`);
+      } finally {
+        // Close this pass's stream whether it finished, dropped, or was never read.
+        stream?.controller?.abort();
       }
+      if (!finished) drops = seen.size > seenBefore ? 1 : drops + 1;
     }
 
     emit.phase("writing");
@@ -371,6 +430,20 @@ async function runGetPageHtml(
 // ---------------------------------------------------------------------------
 
 const CODE_FENCE = /```(?:tsx|jsx|ts|js|typescript|javascript)?\s*\n([\s\S]*?)```/;
+
+/** 4xx responses are the caller's fault and will fail the same way again; 408 and 429 will not. */
+function isRetryable(err: unknown): boolean {
+  const status = (err as { status?: unknown } | null)?.status;
+  if (typeof status !== "number") return true;
+  return status < 400 || status >= 500 || status === 408 || status === 429;
+}
+
+function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener("abort", () => { clearTimeout(timer); resolve(); }, { once: true });
+  });
+}
 
 /** Strip a ```tsx fence, if the model wrapped the file contents in one. */
 function stripFence(text: string): string {

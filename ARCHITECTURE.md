@@ -50,6 +50,33 @@ wall clock waiting on the model. Three things keep it alive or bring it back:
 - **The same heartbeat** drives scheduled rebuilds (`lib/auto-rebuild.ts`), so the
   first new tab of the day already shows a fresh homepage.
 
+### Surviving a dropped stream
+
+The event stream is one long-lived HTTP response, and it spends most of a build
+idle: while pages load in the browser, while the model thinks. A proxy, a VPN or
+a flaky network will close it. The session itself is unaffected and keeps running
+on Anthropic's side.
+
+`runHomepageBuild` therefore treats "the stream ended" and "the build ended" as
+different things. Only a terminal event ends the build. Anything else (the stream
+closing quietly, or throwing a network error) starts another pass:
+
+```
+pass:  open stream → list events → observe unseen → terminal in list? ─yes─▶ done
+                                         │ no
+                     re-answer unanswered tool calls → send kickoff (once)
+                                         │
+                     read stream until terminal ─────────────────────────▶ done
+                                         │ stream ended or threw
+                     made progress? reset the counter : count a drop
+                                         │
+                     8 drops in a row → give up, with the last error
+```
+
+The event list is the source of truth, so a pass that reattaches loses nothing.
+Errors that a retry cannot fix (a 4xx other than 408/429: bad key, deleted
+session) are rethrown at once with the API's own message.
+
 ### Tabs are views
 
 Each new tab connects on a port (`lib/protocol.ts`), receives a snapshot of the
@@ -94,7 +121,7 @@ harness/                  Bun scripts: drive agent-core with a fixture/fetch bri
 
 | Command | Proves |
 |---|---|
-| `pnpm test` | The history digest is capped, ranked, drops `urls[]`, reports `totalSitesSeen` |
+| `pnpm test` | The history digest is capped, ranked, drops `urls[]`, reports `totalSitesSeen`; a dropped stream is reattached without running anything twice |
 | `pnpm agent:run` | Full build against the real API: tools, mounting, sandbox grep/read, deliverable, cleanup |
 | `pnpm agent:verify` | The deliverable transforms, evaluates and server-renders |
 | `pnpm agent:resume-test` | A build killed with a tool call pending can be reattached and finished |
@@ -131,6 +158,11 @@ for a tool result. Break only on `status_terminated`, or on `status_idle` where
 `stop_reason.type !== "requires_action"`. And run the terminal check for *every* event,
 including deduped ones — `continue`-ing on a duplicate can skip the terminal event that
 arrived in the history fetch.
+
+**A stream that ends is not a build that ended.** Falling out of the `for await`
+without a terminal event means the connection was cut. Collecting the deliverable
+at that point finds nothing and reports "Agent produced no homepage" for a session
+that was still working. Reattach instead (see *Surviving a dropped stream*).
 
 **`event_start` / `event_delta` stream events carry no `id`.** Skip them before dedupe.
 
